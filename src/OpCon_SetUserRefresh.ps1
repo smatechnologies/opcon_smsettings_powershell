@@ -43,28 +43,28 @@ function OpCon_IgnoreSelfSignedCerts
     [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
 }
 
-# Start of main script
-if($PSVersionTable.PSVersion -lt 6)
-{ OpCon_IgnoreSelfSignedCerts }
-else 
-{     
-    try
-    { $PSDefaultParameterValues.Add("Invoke-RestMethod:SkipCertificateCheck",$true) }
-    catch
-    { $null } 
-}
-
-if((Invoke-RestMethod -Uri ($url + "/version") -Method GET).opConRestApiProductVersion -lt 20)
-{
-    Write-Output "Error: OpCon version must be 20.0 or greater!"
-    Exit 101
-}
-
-Write-Output (Get-Date)
-Write-Output "#####################################"
-
 try
 { 
+    # Start of main script
+    if($PSVersionTable.PSVersion.Major -lt 6)
+    { OpCon_IgnoreSelfSignedCerts }
+    else 
+    {     
+        try
+        { $PSDefaultParameterValues.Add("Invoke-RestMethod:SkipCertificateCheck",$true) }
+        catch
+        { $null } 
+    }
+
+    if((Invoke-RestMethod -Uri ($url + "/version") -Method GET).opConRestApiProductVersion -lt 20)
+    {
+        Write-Output "Error: OpCon version must be 20.0 or greater!"
+        Exit 101
+    }
+
+    Write-Output (Get-Date)
+    Write-Output "#####################################"
+
     # Authenticate to OpCon
     if($opconUser)
     { 
@@ -92,8 +92,8 @@ try
 
     $users | Where-Object{ $_.loginName -notin ($exclude.Split(",")) } | ForEach-Object{  
                                 # Grab existing settings (if any)
-                                $getCurrent = Invoke-RestMethod -Uri ($url + "/solutionManagerSettings?Name=User&UserId=" + $_.id) -Method GET -Headers @{"Authorization" = $token}
-                                
+                                $getCurrent = Invoke-RestMethod -Uri ($url + "/solutionManagerSettings?Name=user&UserId=" + $_.id) -Method GET -Headers @{"Authorization" = $token}
+
                                 # If existing user settings
                                 if(!$null -eq $getCurrent)
                                 { 
@@ -101,10 +101,10 @@ try
 
                                     # Grabs current settings
                                     $getSettings = Invoke-RestMethod -Uri ($url + "/solutionManagerSettings/" + $getCurrent.id) -Method GET -Headers @{"Authorization" = $token}
-                                    
+
                                     # Set refresh intervals
                                     $json = $getSettings.value | ConvertFrom-Json
-                                    $json.revision = $json.revision + 1                                    
+                                    #$json.revision = $json.revision + 1                                    
                                     $json.refreshIntervalAppStatus = $refreshIntervalAppStatus
                                     $json.refreshIntervalEscalations = $refreshIntervalEscalations
                                     $json.selfService.refreshIntervalLive = $refreshIntervalSelfService
@@ -122,7 +122,7 @@ try
                                     $body = ($getSettings | ConvertTo-Json -Depth 7).Replace("\r\n","")
                                     
                                     # Updates with new refresh intervals
-                                    $update = Invoke-RestMethod -Uri ($url + "/solutionManagerSettings/" + $_.id) -Method PUT -Headers @{"Authorization" = $token} -Body $body -ContentType "application/json"
+                                    $update = Invoke-RestMethod -Uri ($url + "/solutionManagerSettings/" + $getCurrent.id) -Method PUT -Headers @{"Authorization" = $token} -Body $body -ContentType "application/json"
                                 }
                                 else # No user settings, creating
                                 {
